@@ -16,129 +16,86 @@
 
 import tkinter as tk #Libreria de python para hacer GUI
 from PIL import Image, ImageTk
-import socket  #Libreria para conectar la computadora a la rasberry por medio de internet 
+import socket  #Libreria para conectar la computadora a la rasberry por medio de internet
 import threading #Libreria para ejecutar 2 instrucciones a la vez
-import time  #Libreria que se usa para hacer tiempos entre funciones 
+import time  #Libreria que se usa para hacer tiempos entre funciones
 
-#El codigo que se usa para hacer la conexion camputadora-rasberry fue proporcionado por el profesor Luis Barboza. Todos los creditos a él.
-#Solo se hicieron modificaciones a su codigo
-#=====================Aqui se pondra el codigo para conectar la interfaz con la rasberry===================================
-
-# CONFIGURACIoN DE RED
-#la ip cambia, es importante poner la ip que te da la rasberry
-SERVER_IP = '10.215.141.165'
-# puerto de comunicacion
-# ambos programas deben usar el MISMO puerto
-PORT = 1717
-
-# CREAR SOCKET CLIENTE:
-# AF_INET:
-# usar IPv4
-#
-# SOCK_STREAM:
-# usar TCP
-#
-# TCP:
-# conexion estable y segura
-# parecida a una llamada telefonica
-# ============================================================
-
-client_socket = socket.socket(
-    socket.AF_INET,
-    socket.SOCK_STREAM
-)
-#Funcion que se conecta al servidor
-def connect():
-    try:
-        #Intenta conectarse a la rasberry
-        client_socket.connect((SERVER_IP, PORT))
-        # CREAR HILO PARA RECIBIR MENSAJES:
-        # daemon=True:
-        # el hilo se cerrara automaticamente
-        # cuando cierre el programa
-        threading.Thread(
-            target=receive_messages,
-            daemon=True
-        ).start()
-
-        print("Conectado al servidor")
-
-    except Exception as e:
-        # mostrar error si falla conexion
-        print(f"Error: {e}")
-
-#Funcion que envia un mensaje a la rasberry
-def send_message():
-    print("Hola")
-    # obtener texto escrito en Entry
-    msg = "Este mensaje es para la rasberry"
-
-    # verificar que no este vacio
-    if msg != "":
-        # ENVIAR MENSAJE:
-        # encode():
-        # convierte texto a bytes
-        # internet trabaja con bytes
-        client_socket.send(msg.encode()) #esta linea es la que envia el mensaje a la rasberry
-        print("se ha enviado el mensaje")
-
-#Funcion que recibe mensajes de la rasberry
-def receive_messages():
-    while True:
-        #Prueba si hay hay algun mensaje que recibir, si no, cierra el loop
-        try:
-            # RECIBIR DATOS
-            # 1024:maximo de bytes a recibir
-            msg = client_socket.recv(1024).decode()
-            #Imprime el mensaje que recibe
-            print(f"Raspberry: {msg}\n")
-        except:
-            break
-
-#Funcion que termina la conexion en caso de que se cierre el programa
-def salir():
-    #Prueba si se puede cerrar, si no se puede es porque yano esta abierto y pasa
-    try:
-        # cerrar socket
-        client_socket.close()
-    except:
-        pass
-    ventana_principal.destroy()
-
-
-#Iniciar la conexion
-connect()
-
-#==========       ============          ==============         ===========     ==============      =======================
-
+CLAVE_ADMIN = "1234" #contraseña para ingresar al modo de mantenimiento
+en_mantenimiento = False #declara cuando la máquina está en mantenimiento o no.
 
 ventana_principal = tk.Tk() #Se crea la ventana
 ventana_principal.geometry("625x640+750+250") #Define las dimensiones de la ventana
 ventana_principal.title("Maquina Expendedora") #Le asigna un titulo a la ventana
-ventana_principal.resizable(False, False) #Hace que no se pueda cambiar el tmañana de la ventana
+ventana_principal.resizable(False, False) #Hace que no se pueda cambiar el tamaño de la ventana
 
 imagen_inicio = Image.open("Imagenes/Panel_principal.PNG") #Abre la ruta de la imagen
 imagen_tk = ImageTk.PhotoImage(imagen_inicio)   #Trae la imagen abierta 
 imagen_Pantalla_inicio = tk.Label(ventana_principal, image=imagen_tk) #Le asigna un label a la imagen
-imagen_Pantalla_inicio.pack() #Coloca el label en la entana
+imagen_Pantalla_inicio.pack() #Coloca el label en la ventana
 
-tk.Label(imagen_Pantalla_inicio, text="PROYECTO #2 \n FSC\nAndrew Barquero\n Guillermo Mora", 
-         bg="#445a4e", fg="#cef3c4", justify="center",
-        font=("Arial", 13, "bold")).place(relx=0.67, rely=0.1)
+def pedir_contrasena_mantenimiento(): #función para pedir y validar la contraseña.
+    ventana_pass = tk.Toplevel() #Crea la ventana.
+    ventana_pass.geometry("350x200") #Le agrega dimensiones a la ventana
+    ventana_pass.title("Acceso restringido") #Le da un nombre a la ventana
+    ventana_pass.resizable(False, False) #Hace que no pueda editarse el tamaño de la ventana
+
+    tk.Label( #Agrega por medio de un label, una indicación al usuario.
+        ventana_pass,
+        text="Ingrese la contraseña de administrador", #Le indica el ingreso de la contraseña, el tipo de texto y el espacio en el cual desplegarse
+        font=("Arial", 12)
+    ).pack(pady=15)
+
+    entrada_clave = tk.Entry(ventana_pass, show="*", width=25) #se declara una entrada, donde escribir que cifra la clave para que al digitarse no se muestre.
+    entrada_clave.pack(pady=5) #Se le da un espacio en la ventana
+
+    mensaje_error = tk.Label(ventana_pass, text="", fg="red") #se declara una variable a editar cuando se proceda a la validación. (Mensaje de error)
+    mensaje_error.pack()
+
+    def validar(): #función que valida correctamente la contraseña
+        if entrada_clave.get() == CLAVE_ADMIN: #Declara una variable que al ser igual que la clave global
+            ventana_pass.destroy() #destruya la ventana de contraseña
+            abrir_ventana("Mantenimiento") #y abra la ventana de mantenimiento
+        else:
+            mensaje_error.config(text="Contraseña incorrecta") #en caso de ingresar erróneamente la contraseña, indica que la contraseña es incorrecta y no le deja ingresar
+
+    tk.Button(
+        ventana_pass,
+        text="Ingresar", #Crea el boton para ingresar, que activa la validación.
+        width=15,
+        bg="#383447",
+        fg="white",
+        command=validar
+    ).pack(pady=15)
+
+def abrir_ventana(titulo): #Función para crear ventanas, con el parámetro del titulo.
+    ventana = tk.Toplevel() #Declara la variable ventana como una ventana independiente de la principal
+    ventana.geometry("400x300") #Define las dimensiones de la ventana
+    ventana.title(titulo) #LLama al parámetro del título, que cambiará según el botón que se utilice, para nombrar a la nueva ventana creada
+
+    tk.Label(
+        ventana,
+        text=f"Estás en: {titulo}", #Prueba para determinar que la ventana haya sido creada correctamente
+        font=("Arial", 16)
+    ).pack(pady=40)
+
+boton_mantenimiento = tk.Button(imagen_Pantalla_inicio, width=12,
+                        relief="groove",bd=5, bg="#383447", #Se declara el tamaño, posición y colores del botón.
+                        fg="White", text="Mantenimiento", #Se declara el texto que poseerá el botón y su color.
+                        command= pedir_contrasena_mantenimiento) #Se declara el comando a ejecutar al presionar.
+boton_mantenimiento.place(relx= 0.685, rely=0.565) #Se le da un espacio al botón
 
 
-boton_mantenimiento = tk.Button(imagen_Pantalla_inicio, width=12, 
-                        relief="groove",bd=5, bg="#383447", 
-                        fg="White", text="Mantenimiento", 
-                        command=ventana_principal.destroy).place(relx= 0.685, rely=0.565)
-boton_estadistica = tk.Button(imagen_Pantalla_inicio, width=6, 
-                        relief="groove",bd=5, bg="#383447", 
-                        fg="White", text="Datos", 
-                        command=send_message).place(relx= 0.67, rely=0.625)
-boton_salir = tk.Button(imagen_Pantalla_inicio, width=6, 
-                        relief="groove",bd=5, bg="#383447", 
-                        fg="white", text="Salir", 
-                        command=salir).place(relx= 0.78, rely=0.625)
+boton_estadistica = tk.Button(imagen_Pantalla_inicio, width=6,
+                        relief="groove",bd=5, bg="#383447", #Se declara el tamaño, posición y colores del botón.
+                        fg="White", text="Datos", #Se declara el texto que poseerá el botón y su color.
+                        command= lambda: abrir_ventana("Estadísticas")).place(relx= 0.67, rely=0.625) #Se declara el comando a ejecutar al presionar.
+
+boton_salir = tk.Button(imagen_Pantalla_inicio, width=6,
+                        relief="groove",bd=5, bg="#383447", #Se declara el tamaño, posición y colores del botón.
+                        fg="white", text="Salir", #Se declara el texto que poseerá el botón y su color.
+                        command=ventana_principal.destroy).place(relx= 0.78, rely=0.625) #Se declara el comando a ejecutar al presionar.
+
+
 ventana_principal.protocol("WM_DELETE_WINDOW", ventana_principal.destroy)
 
 ventana_principal.mainloop() #Se mantiene la ventana creada abierta
