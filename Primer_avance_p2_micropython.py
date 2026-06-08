@@ -1,3 +1,4 @@
+"""
 from machine import Pin
 import _thread #Hace que se puedan hacer mas de una tarea a la vez
 import network #La libreria encargada de hacer que la raspy se pueda conectar
@@ -200,5 +201,5 @@ while True:
     time.sleep_ms(100)
     
 #=============================================================================================================
-
+"""
 
