@@ -18,7 +18,6 @@ import tkinter as tk #Libreria de python para hacer GUI
 from PIL import Image, ImageTk
 import socket  #Libreria para conectar la computadora a la rasberry por medio de internet 
 import threading #Libreria para ejecutar 2 instrucciones a la vez
-import time  #Libreria que se usa para hacer tiempos entre funciones
 import requests  # para consumir la API de tipo de cambio 
 
 #El codigo que se usa para hacer la conexion camputadora-rasberry fue proporcionado por el profesor Luis Barboza. Todos los creditos a él.
@@ -44,10 +43,9 @@ PORT = 1717
 # parecida a una llamada telefonica
 # ============================================================
 
-client_socket = socket.socket(
+client_socket = socket.socket( #Abrevia las variables para que sean mas faciles de utilizar
     socket.AF_INET,
-    socket.SOCK_STREAM
-)
+    socket.SOCK_STREAM)
 #Funcion que se conecta al servidor
 def connect():
     try:
@@ -58,18 +56,18 @@ def connect():
         # el hilo se cerrara automaticamente
         # cuando cierre el programa
         threading.Thread(
-            target=receive_messages,
+            target=receive_messages, #Hace que la funcion para recibir un mensaje siempre se ejecute como segunda tarea para que no congele el programa
             daemon=True
         ).start()
-
+        #Si no falla en conectarse a la rasberry, imprime un mensaje de exito
         print("Conectado al servidor")
 
     except Exception as e:
-        # mostrar error si falla conexion
+        # mostrar error si falla la conexion
         print(f"Error: {e}")
 
 #Funcion que envia un mensaje a la rasberry
-def enviar_comando(msg):
+def enviar_comando(msg): #Recibe un mensaje y se manda a la rasberry
     # verificar que no este vacio
     if msg != "":
         # ENVIAR MENSAJE:
@@ -77,9 +75,10 @@ def enviar_comando(msg):
         # convierte texto a bytes
         # internet trabaja con bytes
         client_socket.send(msg.encode()) #esta linea es la que envia el mensaje a la rasberry
-        print("se ha enviado el mensaje")
+        print(f"Se ha enviado el mensaje:{msg}") #Mensaje que muestra el mensaje enviado
 
 #Funcion que recibe mensajes de la rasberry
+#Se ejecuta al mismo tiempo que las demas tareas para no congelar el programa
 def receive_messages():
     while True:
         #Prueba si hay hay algun mensaje que recibir, si no, cierra el loop
@@ -88,13 +87,52 @@ def receive_messages():
             # 1024:maximo de bytes a recibir
             msg = client_socket.recv(1024).decode()
             #Imprime el mensaje que recibe
-            print(f"Raspberry: {msg}\n")
+            print(f"Raspberry: {msg}")
+
+            archivo = open("Estadisticas.txt", "r") #Abre el .txt para leerlo
+            lista_ventas = archivo.readlines() #Hace una lista de strings con las lineas que tiene 
+            archivo.close() #Cierra el .txt para no generar problemas
+            lista1 = lista_ventas[0] #La primer linea del .txt es la lista con la cantidad de productos pero en forma de string
+            #Funcion que toma la lista en string y la convierte a una lista con numeros enteros
+            def str_list(lista):
+                lista2= []
+                #Toma lo que esta dentro de los corchetes y hace una lista con eso
+                for i in range(len(lista)):
+                    if lista[i] == "[":
+                        i1 = i+1
+                    if lista[i] == "]":
+                        i2 = i
+                lista2 = lista[i1:i2]
+                lista3 = []
+                #Separa lo que esta entre los parentesis, esos valores deben ser numeros en forma de string, entonces se convierten en enteros y se hace una ultima lista con esos numeros
+                X,Y,Z = lista2.split(",")
+                x = int(X)
+                y = int(Y)
+                z = int(Z)
+                lista3 = lista3 +[x]+[y]+[z]
+                #Retorna la lista con numeros o vector
+                return lista3
+            #Se comvierte la lista de un string a una lista con numeros
+            lista1 = str_list(lista1)
+
+            #Se pregunta que producto se compro y aumenta una unidad al prodcto en la lista de ventidos
+            if msg == "X":
+                lista5 = [lista1[0]+1]+[lista1[1]]+[lista1[2]]
+            elif msg == "Y":
+                lista5 = [lista1[0]]+[lista1[1]+1]+[lista1[2]]
+            elif msg == "Z":
+                lista5 = [lista1[0]]+[lista1[1]]+[lista1[2]+1]
+            
+            #Actualiza el .txt con la nueva lista de productos comprados
+            with open("Estadisticas.txt", 'w') as f:
+                f.write(f"{lista5}")
+        #Si no puede hacer alguna accion, pasa al siguiente bucle
         except:
-            break
+            continue
 
 #Funcion que termina la conexion en caso de que se cierre el programa
 def salir():
-    #Prueba si se puede cerrar, si no se puede es porque yano esta abierto y pasa
+    #Prueba si se puede cerrar, si no se puede es porque ya no esta abierto y pasa
     try:
         # cerrar socket
         client_socket.close()
@@ -104,7 +142,7 @@ def salir():
 
 
 #Iniciar la conexion
-#connect()
+connect()
 CLAVE_ADMIN = "1234" #contraseña para ingresar al modo de mantenimiento
 en_mantenimiento = False #declara cuando la máquina está en mantenimiento o no.
 PRECIOS_COLONES = { #variables con los precios de los productos
@@ -260,7 +298,7 @@ def leer_ventas(): #función para leer la cantidad de ventas y
         with open("Estadisticas.txt", "r") as archivo: #abre un txt, como archivo para guardar y leer las ventas
             linea = archivo.readline().strip() #Crea una linea de texto para poder escribir
 
-        if not linea: #si no hay linea no rfetorna nada
+        if not linea: #si no hay linea no retorna nada
             return None
 
         # Formato esperado: [x,y,z]
@@ -415,7 +453,7 @@ boton_estadistica = tk.Button(imagen_Pantalla_inicio, width=6,
 boton_salir = tk.Button(imagen_Pantalla_inicio, width=6,
                         relief="groove",bd=5, bg="#383447", #Se declara el tamaño, posición y colores del botón.
                         fg="white", text="Salir", #Se declara el texto que poseerá el botón y su color.
-                        command=ventana_principal.destroy).place(relx= 0.78, rely=0.625) #Se declara el comando a ejecutar al presionar.
+                        command=salir).place(relx= 0.78, rely=0.625) #Se declara el comando a ejecutar al presionar.
 
 #Esta linea hace que cuando se preciona la equis de la ventana, se ejecute el mismo proceso que el del boton de salir
 ventana_principal.protocol("WM_DELETE_WINDOW", salir)
